@@ -84,7 +84,10 @@ public class DangerfieldClient {
 				ds.setSoTimeout(tout * 2);
 				
 				/* Send "page fail" message */
-				out.println("page fail");				
+				out.println("page fail");
+                                
+                                if(count == 1)
+                                    out.println("quit");				
 			}
 			
 			count++;

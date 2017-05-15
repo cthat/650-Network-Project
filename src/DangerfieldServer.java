@@ -100,6 +100,9 @@ public class DangerfieldServer {
 					/* Receive "page fail" or "page OK" message */
 					input = in.readLine();
 					System.out.println(input);
+                                        
+                                        if(count == 1 && input.equals("page OK") == false)
+                                            out.println("quit");
 					
 					count++;
 				} while (count <= 1 && input.equals("page OK") == false);
