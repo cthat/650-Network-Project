@@ -12,7 +12,10 @@ import java.util.Scanner;
 public class DangerfieldClient {
 	public static void main(String[] args) throws IOException {		
 		
-		int psize, tout, pageSize, TCPPort=23151, UDPPort=23152;
+		//Array to store packets, position in array assigned by order in which server sends packets
+                DatagramPacket[] datagramPacketArry = new DatagramPacket[100];
+            
+                int psize, tout, pageSize, TCPPort=23151, UDPPort=23152;
 		String sname, srvMsg;
 		InetAddress ip = InetAddress.getByName("localhost");
 		Socket s = new Socket(ip, TCPPort);
@@ -45,7 +48,7 @@ public class DangerfieldClient {
 			
 		String html = "";		
 		boolean allBytesRcvd = false;
-		int count = 0, seqNum=1;		
+		int count = 0, seqNum=1, pos;		
 		do {
 			
 			try {
@@ -56,12 +59,16 @@ public class DangerfieldClient {
 					byte[] rcvdData = new byte[psize];
 					DatagramPacket rcvdPkt = new DatagramPacket(rcvdData, rcvdData.length, ip, UDPPort);					
 					ds.receive(rcvdPkt);
+                                        pos = Integer.parseInt(in.readLine());
 					
-					html += new String(rcvdPkt.getData());
+					//html += new String(rcvdPkt.getData());
 					System.out.println("received packet "+seqNum);
 			
 					/* Increment count based on bytes received */
 					rcvdBytes += rcvdData.length;
+                                        
+                                        //store packets in order sent by server
+                                        datagramPacketArry[pos] = rcvdPkt;
 					
 					seqNum++;
 				}
@@ -97,7 +104,11 @@ public class DangerfieldClient {
 			System.out.println(srvMsg);
 			
 			/* Print HTML */
-			System.out.println(html);
+			for(int i = 0; i < 100; i++){
+                            if(datagramPacketArry[i] != null)
+                                html += new String(datagramPacketArry[i].getData());
+                }
+                        System.out.println(html);
 		}		
 		
 		s.close();		

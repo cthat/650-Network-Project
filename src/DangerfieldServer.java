@@ -77,6 +77,7 @@ public class DangerfieldServer {
 					/* Chunk data to psize packets and send over UDP */
 					int bytesSent = 0;
 					int soff = 0, eoff = psize;
+                                        int packetCount = 0;
 					
 					while(bytesSent < pageSize) {
 						
@@ -84,7 +85,8 @@ public class DangerfieldServer {
 						sendData = Arrays.copyOfRange(surl.getBytes(), soff,  eoff);
 											
 						DatagramPacket sendPkt = new DatagramPacket(sendData, sendData.length, ip, UDPPort);
-						ds.send(sendPkt);																	
+						ds.send(sendPkt);
+                                                out.println(packetCount);																	
 						
 						/* Increment counter based on bytes sent */
 						bytesSent += sendData.length;
@@ -92,6 +94,7 @@ public class DangerfieldServer {
 						/* Adjust offset */
 						soff = eoff;
 						eoff += psize;
+                                                packetCount++;
 					}
 					
 					/* Receive "page fail" or "page OK" message */
