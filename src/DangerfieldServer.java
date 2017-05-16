@@ -11,21 +11,21 @@ import java.io.PrintWriter;
 import java.net.URLConnection;
 import java.util.Arrays;
 
-
 public class DangerfieldServer {
 	@SuppressWarnings("resource")
 	public static void main(String[] args) throws IOException {
 		
-		int TCPPort = 23151;
-		ServerSocket ss = new ServerSocket(TCPPort);		
-			
+		int TCPPort = 23151;		
+		
+		ServerSocket ss = new ServerSocket(TCPPort);
+					
 		while(true) {
 			/* Accept connection and spawn thread */
 			new ThreadHandler(ss.accept()).start();
 		}		
 	}
 	
-	private static class ThreadHandler extends Thread {
+	static class ThreadHandler extends Thread {
 		private Socket s = null;
 		
 		public ThreadHandler(Socket s) {
@@ -36,7 +36,7 @@ public class DangerfieldServer {
 		public void run() {
 			
 			int psize, pageSize, UDPPort = 23152;
-			String url=null, input=null;
+			String url=null, clientMsg=null, html=null;
 			BufferedReader in;
 			PrintWriter out;
 						
@@ -50,78 +50,95 @@ public class DangerfieldServer {
 				/* Open URL and receive contents */
 				URLConnection ucon = new URL(url).openConnection();	
 				in = new BufferedReader(new InputStreamReader(ucon.getInputStream()));
-				String surl = "";
-				while((input = in.readLine()) != null) {
-					surl += input;
-				}
+				String webPage = "";
+				while((html = in.readLine()) != null) {
+					webPage += html;
+				}							
 							
+				/* Get pageSize from webPage length */
+				pageSize = webPage.getBytes().length;
+				
+				/* Adjust pageSize based on number of packets expected */
+				/* Accounts for appended seqNum for each packet */				
+				pageSize += (pageSize/psize);				
+				
 				/* Send page byte size to client */
 				out = new PrintWriter(s.getOutputStream(), true);
-				pageSize = surl.getBytes().length;
 				out.println(pageSize);
 				
 				/* Receive "size OK" message */
 				in = new BufferedReader(new InputStreamReader(s.getInputStream()));
-				input = in.readLine();
-				System.out.println(input);
+				clientMsg = in.readLine();
+				System.out.println(clientMsg);
 				
 				/* Establish UDP socket */
 				DatagramSocket ds = new DatagramSocket();
-				InetAddress ip = InetAddress.getByName("localhost");
+				InetAddress ip = InetAddress.getByName("localhost");				
 		
-				/* Send packets */
-				int count = 0;		
-				
+				/* Send packets over UDP */
+				int count = 0;
 				do {
 				    
-					/* Chunk data to psize packets and send over UDP */
 					int bytesSent = 0;
-					int soff = 0, eoff = psize;
-                                        int packetCount = 0;
-					
+					int soff = 0, eoff = psize;					
+					int seqNum = 1;
+																									
 					while(bytesSent < pageSize) {
-						
+										
+						/* Chunk string into a psized chunk */
 						byte[] sendData = new byte[psize];
-						sendData = Arrays.copyOfRange(surl.getBytes(), soff,  eoff);
-											
-						DatagramPacket sendPkt = new DatagramPacket(sendData, sendData.length, ip, UDPPort);
-						ds.send(sendPkt);
-                                                out.println(packetCount);																	
+						sendData = Arrays.copyOfRange(webPage.getBytes(), soff,  eoff);
+						
+						/* TODO */
+						/* Take new psized string and append the sequence number */
+						String seqString = new String(sendData);
+						seqString = seqNum + "~" + seqString;						
+						
+						/* Convert it back into a byte array for sending */
+						sendData = seqString.getBytes();
+	
+						/* Set up packet and send */
+						DatagramPacket sendPkt = new DatagramPacket(sendData, sendData.length, ip, UDPPort);						
+						ds.send(sendPkt);							
 						
 						/* Increment counter based on bytes sent */
 						bytesSent += sendData.length;
 						
-						/* Adjust offset */
+						/* Adjust offsets */
 						soff = eoff;
 						eoff += psize;
-                                                packetCount++;
+						
+						/* Next packet number */ 
+						seqNum++;
 					}
 					
-					/* Receive "page fail" or "page OK" message */
-					input = in.readLine();
-					System.out.println(input);
-                                        
-                                        if(count == 1 && input.equals("page OK") == false)
-                                            out.println("quit");
+					/* Receive "page fail" or "page OK" message */					
+					clientMsg = in.readLine();
+					System.out.println(clientMsg);
 					
 					count++;
-				} while (count <= 1 && input.equals("page OK") == false);
+				} while (count <= 1 && clientMsg.equals("page OK") == false);
 				
-				ds.close();
+				ds.close();				
 				
 				/* Client received all packets */
-				if (input.equals("page OK") == true) {
+				if (clientMsg.equals("page OK") == true) {			
 					
 					/* Send "IPAddress/OK" message */
-					out.println(s.getRemoteSocketAddress()+"/OK");
+					out.println(s.getInetAddress()+"/OK");					
+					
+				} else {
+					
+					/* Sending webpage failed */
+					System.out.println("quit");
 				}				
-
-				s.close();
 				
+				/* Close socket */
+				s.close();			
+								
 			} catch (IOException e) {
 				e.printStackTrace();
 			}				
 		}	
 	}
-
 }
